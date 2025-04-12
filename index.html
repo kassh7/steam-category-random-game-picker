@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Steam Category Picker</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; text-align: center; }
+    input, select, button { margin: 10px; padding: 8px; }
+  </style>
+</head>
+<body>
+  <h1>🎮 Steam Category Picker</h1>
+  <p>Upload your <code>sharedconfig.vdf</code> file:</p>
+  <input type="file" id="fileInput" accept=".vdf"><br>
+  <select id="categorySelect" style="display:none;"></select><br>
+  <button id="pickButton" style="display:none;">Pick Random Game</button>
+  <p id="result"></p>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const categorySelect = document.getElementById('categorySelect');
+    const pickButton = document.getElementById('pickButton');
+    const result = document.getElementById('result');
+
+    let categoryMap = {};
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = function () {
+        const text = reader.result;
+        parseVDF(text);
+        populateCategories();
+      };
+      reader.readAsText(file);
+    });
+
+    function parseVDF(text) {
+      const lines = text.split('\n');
+      let currentApp = null;
+      let inTags = false;
+
+      for (let line of lines) {
+        line = line.trim().replace(/"/g, '');
+        if (/^\d+$/.test(line)) {
+          currentApp = line;
+        } else if (line === 'tags') {
+          inTags = true;
+        } else if (inTags && /^\d+\s+\w+/.test(line)) {
+          const parts = line.split(/\s+/);
+          const tag = parts.slice(1).join(' ');
+          if (!categoryMap[tag]) categoryMap[tag] = [];
+          if (currentApp) categoryMap[tag].push(currentApp);
+        } else if (line === '}') {
+          inTags = false;
+        }
+      }
+    }
+
+    function populateCategories() {
+      categorySelect.innerHTML = '';
+      Object.keys(categoryMap).sort().forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat;
+        option.textContent = cat;
+        categorySelect.appendChild(option);
+      });
+      categorySelect.style.display = 'inline-block';
+      pickButton.style.display = 'inline-block';
+    }
+
+    pickButton.addEventListener('click', () => {
+      const category = categorySelect.value;
+      const games = categoryMap[category];
+      if (games && games.length) {
+        const chosen = games[Math.floor(Math.random() * games.length)];
+        result.innerHTML = `🎲 Picked from "<strong>${category}</strong>":<br>
+          <a href="https://store.steampowered.com/app/${chosen}" target="_blank">App ID ${chosen}</a>`;
+      } else {
+        result.textContent = 'No games in this category.';
+      }
+    });
+  </script>
+</body>
+</html>
